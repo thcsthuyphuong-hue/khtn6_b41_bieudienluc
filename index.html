@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ai Là Triệu Phú - KHTN 6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- CẤU HÌNH MATHJAX ĐỂ SỬA LỖI HIỂN THỊ CÔNG THỨC TRONG DẤU $ -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            startup: {
+                typeset: false
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-pink: #e91e63;
+            --soft-pink: #fce4ec;
+            --bg-light: #fdfbfb;
+            --correct-green: #43a047;
+            --wrong-red: #e53935;
+        }
+
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            background: var(--bg-light); 
+            margin: 0; padding: 10px;
+            height: 100vh;
+            display: flex; justify-content: center; align-items: center; 
+            color: #333; overflow: hidden;
+            position: relative;
+        }
+
+        .bg-animated {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+            z-index: -1;
+        }
+
+        .bubble {
+            position: absolute; border-radius: 50%;
+            background: rgba(233, 30, 99, 0.08);
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(110vh) scale(1); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        }
+
+        .game-container { 
+            width: 100%; max-width: 1200px; height: 95vh;
+            background: rgba(255, 255, 255, 0.9); 
+            border: 1px solid rgba(233, 30, 99, 0.2); border-radius: 32px; 
+            position: relative; display: flex; flex-direction: column; padding: 25px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            backdrop-filter: blur(15px);
+        }
+
+        .top-bar { 
+            display: flex; justify-content: space-between; align-items: center; 
+            border-bottom: 2px solid var(--soft-pink); 
+            padding-bottom: 15px; margin-bottom: 20px; flex-shrink: 0;
+        }
+        
+        .main-content { display: flex; flex: 1; gap: 25px; overflow: hidden; min-height: 0; }
+        
+        .question-area { 
+            flex: 3; display: flex; flex-direction: column; 
+            background: white; border-radius: 24px; padding: 40px;
+            justify-content: flex-start; position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
+            border: 1px solid #f0f0f0;
+            overflow-y: auto;
+        }
+        
+        .score-board { 
+            flex: 0.8; min-width: 260px; background: var(--soft-pink); 
+            border-radius: 24px; display: flex; flex-direction: column-reverse; /* Xếp ngược từ dưới lên */
+            font-size: 14px; padding: 15px; overflow-y: auto;
+        }
+
+        .score-item { 
+            padding: 8px 15px; margin: 2px 0; border-radius: 10px; 
+            color: #ad1457; font-weight: 500; 
+            transition: 0.3s; background: rgba(255,255,255,0.4);
+            display: flex; justify-content: space-between;
+        }
+        .score-item.active { 
+            background: var(--primary-pink); color: white; font-weight: bold;
+            transform: scale(1.05); box-shadow: 0 5px 15px rgba(233, 30, 99, 0.3);
+        }
+        .score-item.milestone {
+            background: rgba(233, 30, 99, 0.15); color: #880e4f; font-weight: 900; border: 1px solid rgba(233,30,99,0.3);
+        }
+        .score-item.milestone.active {
+            background: #ffb300; color: white; border: none;
+        }
+
+        /* Multiple Choice Styles */
+        .btn-option { 
+            background: #f8f9fa; 
+            border: 2px solid #eee; border-radius: 18px; 
+            padding: 15px 20px; margin: 6px 0; cursor: pointer; 
+            text-align: left; font-size: 1.05rem; width: 100%; color: #444; 
+            transition: all 0.2s; font-weight: 500; position: relative;
+        }
+        .btn-option:hover:not(:disabled) { border-color: var(--primary-pink); background: #fff; }
+        .btn-option.selected { background: #fce4ec !important; border-color: var(--primary-pink) !important; color: #880e4f; }
+        .btn-option.correct { background: #e8f5e9 !important; border-color: #4caf50 !important; color: #1b5e20; }
+        .btn-option.wrong { background: #ffebee !important; border-color: #f44336 !important; color: #b71c1c; }
+
+        /* True/False Styles */
+        .btn-tf {
+            border: 2px solid #eee; background: white; border-radius: 8px;
+            padding: 6px 16px; cursor: pointer; transition: 0.2s;
+            font-weight: bold; color: #666; width: 85px; text-align: center;
+        }
+        .btn-tf.selected-t { background: var(--correct-green); color: white; border-color: var(--correct-green); }
+        .btn-tf.selected-f { background: var(--wrong-red); color: white; border-color: var(--wrong-red); }
+        .btn-tf:hover:not(:disabled) { filter: brightness(0.95); }
+
+        /* Short Answer Styles */
+        .short-answer-input {
+            width: 100%; padding: 18px; border-radius: 18px; border: 3px solid #eee;
+            font-size: 1.5rem; text-align: center; font-weight: bold; color: var(--primary-pink);
+            outline: none; transition: 0.3s; margin-top: 15px; letter-spacing: 2px;
+        }
+        .short-answer-input:focus { border-color: var(--primary-pink); }
+
+        /* Lifeline Styles */
+        .lifeline-btn {
+            background: rgba(233, 30, 99, 0.1); border: 1px solid rgba(233, 30, 99, 0.2);
+            color: var(--primary-pink); padding: 6px 14px; border-radius: 20px;
+            font-weight: bold; font-size: 12px; cursor: pointer; transition: 0.3s;
+        }
+        .lifeline-btn:hover:not(.used) { background: var(--primary-pink); color: white; transform: scale(1.05); }
+        .lifeline-btn.used { opacity: 0.4; cursor: not-allowed; filter: grayscale(100%); }
+        .hidden-5050 { opacity: 0; pointer-events: none; }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        
+        .input-field {
+            width: 100%; padding: 15px 20px; border-radius: 15px; outline: none;
+            border: 2px solid #eee; margin-bottom: 15px; font-size: 16px;
+        }
+
+        .sound-btn {
+            background: rgba(233, 30, 99, 0.1); color: var(--primary-pink);
+            border: none; border-radius: 50%; width: 45px; height: 45px;
+            font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: 0.3s; margin-right: 15px;
+        }
+        .sound-btn:hover { background: var(--primary-pink); color: white; transform: scale(1.1); }
+
+        /* History Table */
+        .history-table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
+        .history-table th, .history-table td { border: 1px solid #fce4ec; padding: 10px; }
+        .history-table th { background: var(--soft-pink); color: #880e4f; }
+        .history-table tr:nth-child(even) { background: #fffcfd; }
+    </style>
+</head>
+<body>
+
+<div class="bg-animated" id="bgBubbles"></div>
+
+<div class="game-container">
+    <div class="top-bar">
+        <div class="flex flex-col">
+            <div class="text-[11px] uppercase tracking-widest text-pink-500 font-black mb-1">ÔN TẬP KHTN 6</div>
+            <div id="userInfo" class="text-xl font-black text-gray-800" style="font-family:'Pacifico'">Ai Là Triệu Phú - KHTN 6</div>
+        </div>
+        <div class="flex items-center">
+            <button id="soundToggleBtn" onclick="toggleSound()" class="sound-btn" title="Bật/Tắt Âm thanh">🔊</button>
+            <div class="bg-white px-8 py-3 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center min-w-[120px]">
+                <span class="text-3xl font-black text-pink-600" id="timer">180s</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="question-area">
+            <div id="questionWrapper" class="w-full">
+                
+                <div class="flex justify-between items-center mb-4">
+                    <div id="qLabel" class="bg-pink-100 text-pink-700 font-bold uppercase tracking-widest text-xs px-4 py-2 rounded-full">Câu hỏi 1</div>
+                    <div id="lifelines-container" class="flex gap-2" style="display: none;">
+                        <button id="ll-5050" class="lifeline-btn" onclick="useLifeline('5050')" title="Bỏ 2 phương án sai">50:50</button>
+                        <button id="ll-call" class="lifeline-btn" onclick="useLifeline('call')" title="Gọi người thân">📞 Người thân</button>
+                        <button id="ll-audience" class="lifeline-btn" onclick="useLifeline('audience')" title="Hỏi ý kiến khán giả">👥 Khán giả</button>
+                    </div>
+                </div>
+
+                <h2 id="qText" class="text-2xl font-black mb-6 text-gray-800 leading-tight"></h2>
+                
+                <p id="tfInstruction" class="text-pink-500 italic mb-4 font-medium" style="display:none;">* Vui lòng chọn Đúng hoặc Sai cho tất cả các nhận định dưới đây:</p>
+                
+                <div id="hint-box" class="hidden bg-pink-50 border-l-4 border-pink-500 p-4 mb-6 rounded-r-lg text-pink-800 text-base font-medium"></div>
+
+                <div id="optionsContainer"></div>
+                
+                <div id="actionZone" class="mt-8 text-center pt-6 border-t border-gray-100 hidden">
+                    <button id="submitAnsBtn" onclick="verifyAnswer()" class="bg-pink-600 text-white font-black px-12 py-3 rounded-xl shadow-lg hover:bg-pink-700 transition disabled:opacity-50">GỬI ĐÁP ÁN</button>
+                </div>
+            </div>
+        </div>
+        <div class="score-board" id="scoreBar">
+            <!-- Sinh ra từ JS theo chiều ngược (Câu 1 ở dưới) -->
+        </div>
+    </div>
+
+    <div class="flex justify-between items-end mt-4">
+        <div id="schoolDisplay" class="text-sm font-bold text-pink-600 bg-white px-4 py-2 rounded-xl shadow-sm">Vui lòng đăng nhập thông tin</div>
+        <div class="text-[12px] font-bold text-gray-500">
+            Bản quyền thuộc về Trường THCS Thuỷ Phương, Thành phố Huế
+        </div>
+    </div>
+
+    <!-- Modal Nhập Thông Tin -->
+    <div class="modal" id="loginModal">
+        <div class="bg-white p-10 rounded-[40px] w-full max-w-md text-center shadow-2xl">
+            <div class="text-4xl font-black mb-2 text-pink-600" style="font-family:'Pacifico'">Ai Là Triệu Phú</div>
+            <div class="text-sm font-bold text-gray-400 mb-8 uppercase tracking-widest">KHTN 6 - Lực & Biểu Diễn Lực</div>
+            <input type="text" id="inName" placeholder="Họ và tên" class="input-field">
+            <input type="text" id="inSBD" placeholder="Số báo danh" class="input-field">
+            <input type="text" id="inClass" placeholder="Lớp" class="input-field">
+            <input type="text" id="inSchool" placeholder="Tên trường học" class="input-field">
+            <button onclick="startGame()" class="w-full bg-pink-600 text-white py-4 rounded-2xl font-black text-lg mt-4 hover:bg-pink-700 transform active:scale-95 transition-all">VÀO NGỒI GHẾ NÓNG</button>
+        </div>
+    </div>
+
+    <!-- Modal Kết Thúc Trò Chơi -->
+    <div class="modal" id="endModal" style="display:none;">
+        <div class="bg-white p-10 rounded-[40px] w-full max-w-md text-center shadow-2xl relative">
+            <h2 id="endTitle" class="text-2xl font-black text-pink-600 mb-2 uppercase">TRÒ CHƠI KẾT THÚC</h2>
+            <div class="text-sm font-bold text-gray-500 mb-6" id="endReason"></div>
+            
+            <div class="relative w-40 h-40 mx-auto mb-6 bg-gray-50 rounded-full flex flex-col items-center justify-center border-8 border-pink-50 shadow-inner">
+                <span class="text-5xl font-black text-pink-600" id="finalScoreText">0</span>
+                <span class="text-sm font-bold text-gray-400">ĐIỂM</span>
+            </div>
+            
+            <div id="feedbackText" class="mb-8 px-4 text-base font-medium text-gray-700 italic"></div>
+
+            <div class="flex gap-3">
+                <button onclick="showHistory()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">XEM LỊCH SỬ</button>
+                <button onclick="retryGame()" class="flex-1 bg-pink-600 text-white py-3 rounded-xl font-bold hover:bg-pink-700 transition">CHƠI LẠI</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lịch Sử -->
+    <div class="modal" id="historyModal" style="display:none;">
+        <div class="bg-white p-6 rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl relative">
+            <h2 class="text-2xl font-black text-pink-600 mb-4 font-['Pacifico']">Lịch sử làm bài</h2>
+            <div class="flex-1 overflow-auto rounded-xl border border-gray-100">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th width="8%">Câu</th>
+                            <th width="32%">Nội dung</th>
+                            <th width="15%">Đ/Án Bạn Chọn</th>
+                            <th width="15%">Đ/Án Đúng</th>
+                            <th width="30%">Giải thích</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 text-right">
+                <button onclick="closeHistoryAndRetry()" class="bg-pink-600 text-white py-3 px-8 rounded-xl font-bold hover:bg-pink-700 transition">ĐÓNG VÀ CHƠI LẠI</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- NGÂN HÀNG 40 CÂU HỎI (BÀI 41 KHTN 6) PHÙ HỢP HS LỚP 6 ---
+    const fullBank = [
+        // 24 CÂU TRẮC NGHIỆM ĐA LỰA CHỌN (MC)
+        { id: 1, type: "choice", q: "Để biểu diễn lực trên giấy, người ta dùng hình vẽ gì?", o: ["Một đường thẳng.", "Một chấm tròn.", "Một mũi tên.", "Một hình vuông."], a: 2, exp: "Vì lực có hướng (đẩy hoặc kéo về phía nào đó) nên ta dùng mũi tên để vẽ lực." },
+        { id: 2, type: "choice", q: "Gốc của mũi tên biểu diễn lực được đặt ở đâu?", o: ["Ở vị trí bất kì trên giấy.", "Tại điểm mà lực tác dụng lên vật.", "Ở ngoài khoảng không.", "Ở ngọn mũi tên."], a: 1, exp: "Gốc mũi tên chính là 'điểm đặt' của lực, nằm ngay chỗ tay ta chạm vào vật (nếu ta đẩy vật)." },
+        { id: 3, type: "choice", q: "Chiều của mũi tên biểu diễn lực cho chúng ta biết điều gì?", o: ["Lực đang kéo hay đẩy vật về hướng nào.", "Khối lượng của vật nặng hay nhẹ.", "Thời gian lực tác dụng lâu hay mau.", "Vật đang nằm yên hay chuyển động."], a: 0, exp: "Chiều mũi tên chính là chiều tác dụng của lực." },
+        { id: 4, type: "choice", q: "Độ dài của mũi tên biểu diễn lực cho chúng ta biết thông tin gì?", o: ["Quãng đường vật di chuyển.", "Độ lớn (sự mạnh yếu) của lực.", "Kích thước của vật bị đẩy.", "Trọng lượng của người đẩy."], a: 1, exp: "Mũi tên càng dài thì lực đó càng mạnh, được vẽ theo một tỉ lệ (tỉ xích) cho trước." },
+        { id: 5, type: "choice", q: "Đơn vị đo độ lớn của lực là gì?", o: ["Kilôgam (kg).", "Lít (L).", "Mét (m).", "Newton (N)."], a: 3, exp: "Để ghi nhớ công lao nhà bác học Newton, người ta lấy tên ông làm đơn vị của lực." },
+        { id: 6, type: "choice", q: "Khi vẽ mũi tên biểu diễn lực, yếu tố nào chỉ ra 'phương và chiều' của lực?", o: ["Gốc mũi tên.", "Độ dài mũi tên.", "Hướng của mũi tên.", "Màu sắc mũi tên."], a: 2, exp: "Hướng của mũi tên (nằm ngang, thẳng đứng hay xiên) chính là phương và chiều của lực." },
+        { id: 7, type: "choice", q: "Kí hiệu của lực (ở dạng véctơ) thường được viết như thế nào?", o: ["Chữ M.", "Chữ F có mũi tên trên đầu ($\\vec{F}$).", "Chữ N.", "Chữ P in hoa."], a: 1, exp: "Lực là một đại lượng có hướng (véctơ) nên kí hiệu bằng chữ F kèm mũi tên trên đầu." },
+        { id: 8, type: "choice", q: "Kí hiệu độ lớn của lực (chỉ quan tâm số đo, không cần hướng) được viết là?", o: ["$\\vec{F}$", "$F$", "$\\vec{P}$", "$m$"], a: 1, exp: "Khi ghi độ lớn (ví dụ $F = 50\\text{ N}$) thì ta chỉ viết chữ $F$ in hoa." },
+        { id: 9, type: "choice", q: "Muốn biểu diễn một lực đẩy chiếc xe ô tô nằm ngang sang bên phải, em sẽ vẽ mũi tên như thế nào?", o: ["Mũi tên nằm ngang, chỉ sang phải.", "Mũi tên thẳng đứng, chỉ xuống dưới.", "Mũi tên nằm ngang, chỉ sang trái.", "Mũi tên thẳng đứng, chỉ lên trên."], a: 0, exp: "Lực đẩy sang hướng nào thì mũi tên phải chỉ về hướng đó." },
+        { id: 10, type: "choice", q: "Trọng lực (lực hút của Trái Đất) tác dụng lên quả táo rơi được biểu diễn bằng mũi tên hướng thế nào?", o: ["Thẳng đứng, từ dưới lên trên.", "Nằm ngang, từ trái sang phải.", "Thẳng đứng, từ trên xuống dưới.", "Xiên chéo."], a: 2, exp: "Trái Đất hút vạn vật về phía tâm nên trọng lực luôn hướng từ trên xuống dưới." },
+        { id: 11, type: "choice", q: "Lực nâng của mặt bàn tác dụng lên quyển sách nằm yên được vẽ bằng mũi tên hướng về đâu?", o: ["Thẳng đứng, từ dưới lên trên.", "Thẳng đứng, từ trên xuống dưới.", "Nằm ngang.", "Không có hướng."], a: 0, exp: "Mặt bàn đỡ quyển sách không cho rớt xuống nên lực nâng phải đẩy lên phía trên." },
+        { id: 12, type: "choice", q: "Một bạn chọn tỉ xích $1\\text{ cm} = 5\\text{ N}$. Vậy để vẽ một lực $15\\text{ N}$, bạn đó phải vẽ mũi tên dài bao nhiêu?", o: ["$15\\text{ cm}$", "$5\\text{ cm}$", "$3\\text{ cm}$", "$2\\text{ cm}$"], a: 2, exp: "Ta tính bằng cách lấy lực chia cho tỉ xích: $15 : 5 = 3\\text{ cm}$." },
+        { id: 13, type: "choice", q: "Một mũi tên biểu diễn lực có độ dài $4\\text{ cm}$. Biết tỉ xích $1\\text{ cm} = 10\\text{ N}$. Lực này mạnh bao nhiêu?", o: ["$40\\text{ N}$", "$14\\text{ N}$", "$4\\text{ N}$", "$10\\text{ N}$"], a: 0, exp: "Độ lớn lực = Độ dài mũi tên nhân với tỉ xích: $4 \\times 10 = 40\\text{ N}$." },
+        { id: 14, type: "choice", q: "Có thể thay đổi phương và chiều của lực tác dụng lên một chiếc xe đẩy không?", o: ["Không bao giờ thay đổi được.", "Có thể thay đổi, tuỳ vào cách em kéo hay đẩy xe.", "Chỉ đổi được chiều, phương giữ nguyên.", "Chỉ đổi được độ lớn."], a: 1, exp: "Em kéo xe thẳng, kéo xiên hay đẩy lùi đều làm thay đổi phương và chiều của lực kéo." },
+        { id: 15, type: "choice", q: "Điểm đặt của lực ma sát khi ta kéo lê một thùng gỗ trên mặt sàn nằm ở đâu?", o: ["Tại mặt trên cùng của thùng gỗ.", "Tại giữa không trung.", "Tại mặt tiếp xúc giữa đáy thùng và mặt sàn.", "Ở vị trí tay ta kéo."], a: 2, exp: "Lực ma sát cản trở chuyển động do hai bề mặt cọ xát vào nhau nên nó nằm ngay mặt đáy tiếp xúc." },
+        { id: 16, type: "choice", q: "Mũi tên biểu diễn lực ma sát trượt cản trở chuyển động sẽ có chiều như thế nào?", o: ["Cùng chiều với chiều trượt của vật.", "Vuông góc với chiều trượt.", "Ngược chiều chuyển động của vật.", "Hướng thẳng đứng lên trên."], a: 2, exp: "Lực ma sát có tác dụng cản lại vật, nên mũi tên phải vẽ ngược hướng với chiều vật đang đi." },
+        { id: 17, type: "choice", q: "Hai lực cân bằng tác dụng lên cùng một vật sẽ được vẽ bằng hai mũi tên có đặc điểm gì?", o: ["Cùng phương, cùng chiều, dài bằng nhau.", "Cùng phương, ngược chiều, dài bằng nhau.", "Khác phương, ngược chiều.", "Cùng phương, ngược chiều, độ dài khác nhau."], a: 1, exp: "Hai lực cân bằng giống như hai đội kéo co hòa nhau: kéo về hai hướng ngược nhau nhưng sức kéo (độ dài) bằng nhau." },
+        { id: 18, type: "choice", q: "Một bạn vẽ mũi tên lực đẩy hướng xiên lên trên với góc 45 độ. Điều này có nghĩa là?", o: ["Bạn đó đang đẩy vật chìm xuống đất.", "Bạn đó đang đẩy vật ngang mặt đất.", "Bạn đó đang đẩy vật xiên lên trên.", "Bạn đó đang kéo vật về phía sau."], a: 2, exp: "Mũi tên chỉ hướng nào thì lực tác động theo đúng hướng đó." },
+        { id: 19, type: "choice", q: "Khối lượng của một bạn học sinh lớp 6 là $40\\text{ kg}$. Trọng lượng của bạn đó khoảng bao nhiêu?", o: ["$40\\text{ N}$", "$400\\text{ N}$", "$4\\text{ N}$", "$4000\\text{ N}$"], a: 1, exp: "Công thức liên hệ là Trọng lượng = 10 lần Khối lượng: $P = 10 \\times m = 10 \\times 40 = 400\\text{ N}$." },
+        { id: 20, type: "choice", q: "Lực kéo một sợi dây thun giãn ra có điểm đặt tại đâu?", o: ["Tại trọng tâm (chính giữa) dây thun.", "Tại điểm tay ta cầm nắm và kéo dây.", "Tại mặt đất.", "Không có điểm đặt."], a: 1, exp: "Lực từ tay truyền vào dây thun ngay tại vị trí ngón tay chạm vào." },
+        { id: 21, type: "choice", q: "Yếu tố nào sau đây KHÔNG phải là đặc điểm của véctơ lực?", o: ["Điểm đặt.", "Khối lượng của vật.", "Phương và chiều.", "Độ lớn."], a: 1, exp: "Véctơ lực chỉ có 4 yếu tố: Điểm đặt, phương, chiều và độ lớn." },
+        { id: 22, type: "choice", q: "Lực đẩy Ác-si-mét của nước làm con thuyền nổi lên mặt hồ được vẽ mũi tên hướng về đâu?", o: ["Từ trên xuống dưới.", "Từ trái qua phải.", "Từ dưới lên trên.", "Xiên ngang."], a: 2, exp: "Nước đẩy các vật nổi bồng bềnh lên trên nên lực có phương thẳng đứng, chiều từ dưới lên." },
+        { id: 23, type: "choice", q: "Khi vẽ lực $F_1 = 10\\text{ N}$ và lực $F_2 = 30\\text{ N}$ trên cùng hình vẽ, mũi tên lực $F_2$ sẽ thế nào so với $F_1$?", o: ["Bằng nhau.", "Dài gấp đôi.", "Dài gấp ba lần.", "Ngắn hơn một nửa."], a: 2, exp: "$30\\text{ N}$ lớn gấp 3 lần $10\\text{ N}$ nên độ dài mũi tên cũng phải dài gấp 3 lần." },
+        { id: 24, type: "choice", q: "Nếu em thay đổi 'điểm đặt' của lực đẩy (đẩy ở cạnh dưới thay vì đỉnh tủ), kết quả có thay đổi không?", o: ["Không có gì thay đổi.", "Tủ sẽ biến thành vật khác.", "Có thể làm tủ bị lật hoặc quay thay vì trượt.", "Lực sẽ biến mất."], a: 2, exp: "Vị trí đặt tay rất quan trọng, đẩy sai chỗ có thể làm đồ vật bị ngã lộn nhào." },
+
+        // 8 CÂU HỎI ĐÚNG/SAI (TF) - LỚP 6
+        {
+            id: 25, type: "tf", q: "Nhận định về cách dùng mũi tên để biểu diễn lực trong Vật lí:",
+            opts: [
+                { text: "Gốc mũi tên bắt buộc phải đặt ngay trên vật bị chịu lực tác dụng.", ans: true },
+                { text: "Độ dài mũi tên vẽ ngắn hay dài là tùy ý, không cần theo quy tắc nào.", ans: false },
+                { text: "Hướng của mũi tên chính là hướng tác dụng của lực kéo hay đẩy.", ans: true },
+                { text: "Em có thể vẽ mũi tên cong hình chữ C để biểu diễn lực quay tròn.", ans: false }
+            ],
+            exp: "Độ dài mũi tên phải được vẽ theo một tỉ xích (tỉ lệ) cho trước. Mũi tên biểu diễn lực luôn là một đoạn thẳng có hướng, không được vẽ cong."
+        },
+        {
+            id: 26, type: "tf", q: "Một bạn dùng tay kéo một chiếc hộp gỗ trên mặt sàn nằm ngang sang trái:",
+            opts: [
+                { text: "Mũi tên biểu diễn lực kéo của tay sẽ hướng sang bên phải.", ans: false },
+                { text: "Gốc mũi tên biểu diễn lực kéo sẽ đặt tại điểm tay nắm vào chiếc hộp.", ans: true },
+                { text: "Trọng lực tác dụng lên hộp được vẽ bằng mũi tên hướng thẳng từ trên xuống.", ans: true },
+                { text: "Lực ma sát cản trở chiếc hộp trượt sẽ được vẽ bằng mũi tên hướng sang trái.", ans: false }
+            ],
+            exp: "Kéo hộp sang trái thì lực kéo hướng sang trái. Lực ma sát cản trở nên phải hướng ngược lại là sang phải."
+        },
+        {
+            id: 27, type: "tf", q: "Cho một mũi tên biểu diễn lực dài $5\\text{ cm}$, biết người vẽ chọn tỉ xích là $1\\text{ cm} = 10\\text{ N}$.",
+            opts: [
+                { text: "Độ lớn của lực này đang là $50\\text{ N}$.", ans: true },
+                { text: "Nếu tỉ xích là $1\\text{ cm} = 20\\text{ N}$ thì độ lớn lực sẽ là $100\\text{ N}$.", ans: true },
+                { text: "Tỉ xích chỉ dùng để tính phương chiều, không liên quan độ lớn.", ans: false },
+                { text: "Muốn vẽ lực $20\\text{ N}$ với tỉ xích cũ ($1\\text{ cm} = 10\\text{ N}$), ta phải vẽ mũi tên dài $2\\text{ cm}$.", ans: true }
+            ],
+            exp: "Tỉ xích dùng để quy đổi độ dài trên giấy thành độ lớn thực tế của lực (ví dụ $5 \\times 10 = 50\\text{ N}$)."
+        },
+        {
+            id: 28, type: "tf", q: "Khi biểu diễn hai lực cân bằng tác dụng lên một quyển sách nằm yên trên bàn:",
+            opts: [
+                { text: "Hai mũi tên biểu diễn hai lực đó phải có độ dài bằng nhau.", ans: true },
+                { text: "Hai mũi tên đó phải cùng hướng về một phía (chỉ lên hoặc chỉ xuống).", ans: false },
+                { text: "Hai mũi tên đó phải nằm trên cùng một đường thẳng (cùng phương).", ans: true },
+                { text: "Điểm đặt của lực hút Trái Đất và lực nâng của bàn nằm trên hai quyển sách khác nhau.", ans: false }
+            ],
+            exp: "Hai lực cân bằng phải ngược chiều nhau (một hướng lên, một hướng xuống) và cùng tác dụng vào 1 quyển sách."
+        },
+        {
+            id: 29, type: "tf", q: "Nhận định về 'điểm đặt' của các loại lực thường gặp:",
+            opts: [
+                { text: "Điểm đặt của lực ma sát nằm tại bề mặt tiếp xúc (chỗ cọ xát) giữa hai vật.", ans: true },
+                { text: "Điểm đặt của trọng lực (lực hút Trái Đất) luôn nằm ở mặt đất.", ans: false },
+                { text: "Lực kéo đàn hồi của lò xo có điểm đặt ngay tại chỗ cái móc vật nặng.", ans: true },
+                { text: "Lực đẩy của tay lên bức tường có điểm đặt ở vai người đẩy.", ans: false }
+            ],
+            exp: "Trọng lực có điểm đặt ở giữa vật (trọng tâm). Lực đẩy của tay có điểm đặt ở ngay mặt tường chỗ tay chạm vào."
+        },
+        {
+            id: 30, type: "tf", q: "Quan sát một quả bóng bay đang rơi tự do thẳng đứng từ trên cao xuống:",
+            opts: [
+                { text: "Mũi tên biểu diễn trọng lực tác dụng lên bóng có phương nằm ngang.", ans: false },
+                { text: "Gốc của mũi tên trọng lực được đặt tại chính giữa (trọng tâm) quả bóng.", ans: true },
+                { text: "Chiều của mũi tên trọng lực hướng thẳng đứng từ trên xuống.", ans: true },
+                { text: "Nếu quả bóng rơi càng nhanh thì ta phải vẽ mũi tên trọng lực dài ra thêm.", ans: false }
+            ],
+            exp: "Trọng lực của vật có độ lớn không đổi khi rơi (nếu khối lượng vật không đổi), nên mũi tên cũng không thay đổi độ dài."
+        },
+        {
+            id: 31, type: "tf", q: "Nhận định về các kí hiệu viết tắt khi học về lực:",
+            opts: [
+                { text: "Đơn vị đo độ lớn của lực được viết tắt là chữ N (Newton).", ans: true },
+                { text: "Để kí hiệu véctơ lực, người ta dùng chữ F in hoa không có dấu gì thêm.", ans: false },
+                { text: "Khi viết độ lớn của lực (ví dụ lực bằng 50 Newton), ta viết là $F = 50\\text{ N}$.", ans: true },
+                { text: "Một lực $1\\text{ N}$ là một lực rất khổng lồ, cỡ lực kéo của chiếc xe tải.", ans: false }
+            ],
+            exp: "Véctơ lực phải có dấu mũi tên trên đầu chữ F ($\\vec{F}$). Lực $1\\text{ N}$ rất nhỏ, chỉ bằng trọng lượng của một quả chanh nhỏ $100\\text{ g}$."
+        },
+        {
+            id: 32, type: "tf", q: "Xét việc biểu diễn lực bằng cách dùng tỉ xích:",
+            opts: [
+                { text: "Tỉ xích (1 cm ứng với bao nhiêu N) là do học sinh tự chọn sao cho vừa vở.", ans: true },
+                { text: "Có thể dùng một tỉ xích duy nhất để vẽ $F_1 = 10\\text{ N}$ và $F_2 = 20\\text{ N}$ trên cùng một hình.", ans: true },
+                { text: "Lực có độ lớn càng nhỏ thì mũi tên biểu diễn vẽ ra càng dài.", ans: false },
+                { text: "Việc chọn tỉ xích to hay nhỏ không làm thay đổi phương và chiều của mũi tên lực.", ans: true }
+            ],
+            exp: "Lực nhỏ thì mũi tên ngắn, lực lớn thì mũi tên dài. Việc chọn tỉ xích chỉ ảnh hưởng đến độ dài vẽ trên giấy."
+        },
+
+        // 8 CÂU HỎI TRẢ LỜI NGẮN (SA) - LỚP 6
+        { id: 33, type: "short", q: "Một túi nilon đựng trái cây có khối lượng $3\\text{ kg}$. Trọng lượng của túi trái cây là bao nhiêu $\\text{N}$? (Lấy $P = 10 \\times m$)", a: "30", exp: "Trọng lượng được tính theo công thức: $P = 10 \\times 3 = 30\\text{ N}$." },
+        { id: 34, type: "short", q: "Em đo được mũi tên biểu diễn một lực kéo dài $4\\text{ cm}$. Biết tỉ xích quy ước là $1\\text{ cm}$ ứng với $15\\text{ N}$. Lực kéo này mạnh bao nhiêu $\\text{N}$?", a: "60", exp: "Lấy chiều dài mũi tên nhân với tỉ xích: $4 \\times 15 = 60\\text{ N}$." },
+        { id: 35, type: "short", q: "Em cần vẽ một lực đẩy $100\\text{ N}$ sang bên phải. Nếu em chọn tỉ xích $1\\text{ cm} = 25\\text{ N}$, mũi tên em vẽ vào vở sẽ dài bao nhiêu $\\text{cm}$?", a: "4", exp: "Lấy độ lớn của lực chia cho tỉ xích: $100 / 25 = 4\\text{ cm}$." },
+        { id: 36, type: "short", q: "Chọn các nhận định ĐÚNG và ghi các số thành một dãy theo thứ tự từ bé đến lớn:<br>1. Mũi tên biểu diễn lực có 4 yếu tố.<br>2. Trọng lực luôn có chiều đẩy lên trên.<br>3. Tỉ xích dùng để vẽ đúng chiều của lực.<br>4. Kí hiệu của véctơ lực là chữ F có mũi tên trên đầu.", a: "14", exp: "Chỉ có ý 1 và 4 đúng. Ý 2 sai vì trọng lực hướng xuống dưới. Ý 3 sai vì tỉ xích dùng để vẽ độ dài. Dãy số đúng là 14." },
+        { id: 37, type: "short", q: "Hai bạn cùng chung sức đẩy một chiếc tủ lớn về phía trước. Bạn A đẩy bằng lực $30\\text{ N}$, bạn B đẩy mạnh $40\\text{ N}$. Tổng độ lớn lực đẩy của 2 bạn là bao nhiêu $\\text{N}$?", a: "70", exp: "Hai bạn đẩy cùng một hướng nên hợp lực bằng tổng hai lực cộng lại: $30 + 40 = 70\\text{ N}$." },
+        { id: 38, type: "short", q: "Một quả cam nặng $200\\text{ g}$. Để vẽ trọng lực quả cam này với tỉ xích $1\\text{ cm} = 1\\text{ N}$, mũi tên sẽ dài bao nhiêu $\\text{cm}$? (Gợi ý: Đổi g ra kg rồi tính $P$)", a: "2", exp: "Đổi $200\\text{ g} = 0,2\\text{ kg}$. Tính trọng lượng $P = 10 \\times 0,2 = 2\\text{ N}$. Mũi tên sẽ dài $2\\text{ cm}$." },
+        { id: 39, type: "short", q: "Bạn Lan vẽ mũi tên dài $5\\text{ cm}$ để thay thế cho một lực mạnh $250\\text{ N}$. Hỏi tỉ xích bạn Lan đã tự chọn là $1\\text{ cm}$ ứng với bao nhiêu $\\text{N}$?", a: "50", exp: "Ta tính tỉ xích bằng cách lấy độ lớn lực chia cho độ dài bản vẽ: $250 / 5 = 50\\text{ N/cm}$." },
+        { id: 40, type: "short", q: "Một quyển sách có trọng lượng $5\\text{ N}$ nằm im lìm trên mặt bàn. Hỏi lực nâng của mặt bàn đỡ lấy cuốn sách có độ lớn bằng bao nhiêu $\\text{N}$?", a: "5", exp: "Sách nằm yên tức là lực hút xuống đã cân bằng (bằng nhau) với lực nâng lên. Vậy mặt bàn nâng một lực là $5\\text{ N}$." }
+    ];
+
+    // --- GAME STATE ---
+    let sessionBank = []; // 20 câu
+    let currentIndex = 0;
+    let currentAns = null;
+    let isExamFinished = false;
+    let timeLeft = 180;
+    let timerInterval;
+    let isGameStarted = false;
+    let lifelines = { '5050': true, 'call': true, 'audience': true };
+    let historyLog = [];
+
+    const scoreMap = [0, 1, 2, 3, 4, 5, 5.6, 6.2, 6.8, 7.4, 8, 8.2, 8.4, 8.6, 8.8, 9, 9.2, 9.4, 9.6, 9.8, 10];
+
+    // --- AUDIO ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+    let soundEnabled = true;
+
+    function initAudio() {
+        if (!audioCtx && soundEnabled) audioCtx = new AudioContext();
+    }
+    function toggleSound() {
+        soundEnabled = !soundEnabled;
+        document.getElementById('soundToggleBtn').innerText = soundEnabled ? '🔊' : '🔇';
+        if (soundEnabled) playSound('click');
+    }
+    function playSound(type) {
+        if (!soundEnabled) return;
+        if (!audioCtx) initAudio();
+        if (!audioCtx) return;
+
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'click' || type === 'pingpong') {
+            osc.type = 'sine'; osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+            gainNode.gain.setValueAtTime(0, now); gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'correct') {
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(554.37, now + 0.1); osc.frequency.setValueAtTime(659.25, now + 0.2);
+            osc.frequency.setValueAtTime(880, now + 0.3); gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.6); osc.start(now); osc.stop(now + 0.6);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.5); gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.linearRampToValueAtTime(0, now + 0.5); osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'win') {
+            osc.type = 'square'; [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => { osc.frequency.setValueAtTime(freq, now + i * 0.15); });
+            gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.linearRampToValueAtTime(0, now + 1);
+            osc.start(now); osc.stop(now + 1);
+        }
+    }
+
+    // Load LocalStorage
+    window.onload = () => {
+        const savedUser = localStorage.getItem('khtn6_user');
+        if (savedUser) {
+            try {
+                const u = JSON.parse(savedUser);
+                document.getElementById('inName').value = u.name || '';
+                document.getElementById('inSBD').value = u.sbd || '';
+                document.getElementById('inClass').value = u.class || '';
+                document.getElementById('inSchool').value = u.school || '';
+            } catch(e) {}
+        }
+    };
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // Bubbles
+    const bg = document.getElementById('bgBubbles');
+    for(let i=0; i<25; i++) {
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        const size = Math.random() * 80 + 20;
+        b.style.width = size + 'px'; b.style.height = size + 'px';
+        b.style.left = Math.random() * 100 + 'vw';
+        b.style.animationDelay = Math.random() * 10 + 's';
+        bg.appendChild(b);
+    }
+
+    function startGame() {
+        const name = document.getElementById('inName').value;
+        const sbd = document.getElementById('inSBD').value;
+        const className = document.getElementById('inClass').value;
+        const school = document.getElementById('inSchool').value;
+        if(!name || !sbd) return alert("Vui lòng điền đủ thông tin!");
+
+        localStorage.setItem('khtn6_user', JSON.stringify({ name, sbd, class: className, school }));
+        document.getElementById('userInfo').innerText = `${name.toUpperCase()} - ${className} (SBD: ${sbd})`;
+        document.getElementById('schoolDisplay').innerText = `${name} - SBD: ${sbd}`;
+        
+        initAudio(); playSound('click');
+        resetGameEngine();
+        document.getElementById('loginModal').style.display = 'none';
+    }
+
+    function retryGame() {
+        playSound('click');
+        document.getElementById('endModal').style.display = 'none';
+        document.getElementById('historyModal').style.display = 'none';
+        resetGameEngine();
+    }
+
+    function closeHistoryAndRetry() {
+        retryGame();
+    }
+
+    function resetGameEngine() {
+        isExamFinished = false;
+        currentIndex = 0;
+        historyLog = [];
+        lifelines = { '5050': true, 'call': true, 'audience': true };
+        document.getElementById('ll-5050').classList.remove('used');
+        document.getElementById('ll-call').classList.remove('used');
+        document.getElementById('ll-audience').classList.remove('used');
+        document.getElementById('lifelines-container').style.display = 'flex';
+
+        // Lấy đúng 20 câu: 12 MC, 4 TF, 4 SA
+        let mcs = shuffle([...fullBank.filter(q => q.type === 'choice')]).slice(0, 12);
+        let tfs = shuffle([...fullBank.filter(q => q.type === 'tf')]).slice(0, 4);
+        let sas = shuffle([...fullBank.filter(q => q.type === 'short')]).slice(0, 4);
+        sessionBank = [...mcs, ...tfs, ...sas];
+
+        isGameStarted = true;
+        renderScoreBoard();
+        loadQuestion();
+    }
+
+    function renderScoreBoard() {
+        const board = document.getElementById('scoreBar');
+        board.innerHTML = '';
+        for (let i = 1; i <= 20; i++) {
+            const div = document.createElement('div');
+            div.className = 'score-item';
+            div.id = `score-dot-${i}`;
+            if(i === 5 || i === 10 || i === 20) div.classList.add('milestone');
+            div.innerHTML = `<span>Câu ${i}</span><span>${scoreMap[i].toString().replace('.', ',')}</span>`;
+            board.appendChild(div);
+        }
+        updateScoreBoardHighlight();
+    }
+
+    function updateScoreBoardHighlight() {
+        for (let i = 1; i <= 20; i++) {
+            const el = document.getElementById(`score-dot-${i}`);
+            el.classList.remove('active');
+            if (i === currentIndex + 1) el.classList.add('active');
+        }
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = `${timeLeft}s`;
+            if (timeLeft <= 30) {
+                timerEl.style.color = "var(--wrong-red)";
+            } else {
+                timerEl.style.color = "var(--primary-pink)";
+            }
+            if(timeLeft <= 0) {
+                clearInterval(timerInterval);
+                document.querySelectorAll('.btn-option').forEach(b => b.disabled = true);
+                const submitBtn = document.getElementById('submitAnsBtn');
+                if(submitBtn) submitBtn.disabled = true;
+                handleGameOver(false, "HẾT THỜI GIAN!");
+            }
+        }, 1000);
+    }
+
+    function loadQuestion() {
+        if(currentIndex >= 20) return;
+        currentAns = null;
+        updateScoreBoardHighlight();
+
+        const qData = sessionBank[currentIndex];
+        document.getElementById('qLabel').innerText = `CÂU HỎI ${currentIndex + 1}`;
+        document.getElementById('qText').innerHTML = qData.q;
+        
+        const hintBox = document.getElementById('hint-box');
+        if (qData.activeHint) {
+            hintBox.innerHTML = qData.activeHint; hintBox.classList.remove('hidden');
+        } else {
+            hintBox.classList.add('hidden');
+        }
+
+        const tfInstruct = document.getElementById('tfInstruction');
+        tfInstruct.style.display = (qData.type === 'tf') ? 'block' : 'none';
+
+        const cont = document.getElementById('optionsContainer');
+        cont.innerHTML = '';
+        
+        const actionZone = document.getElementById('actionZone');
+        const submitBtn = document.getElementById('submitAnsBtn');
+        submitBtn.disabled = true;
+
+        if(qData.type === "choice") {
+            actionZone.classList.add('hidden'); // MC tự động submit khi click
+            // Xáo trộn đáp án cho MC
+            if(!qData.shuffledOpt) {
+                let mapped = qData.o.map((text, idx) => ({ text, isCorrect: idx === qData.a }));
+                mapped = shuffle(mapped);
+                qData.shuffledOpt = mapped.map(x => x.text);
+                qData.correctIdx = mapped.findIndex(x => x.isCorrect);
+            }
+
+            qData.shuffledOpt.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-option';
+                btn.id = `opt-${idx}`;
+                if (qData.hiddenOptions && qData.hiddenOptions.includes(idx)) {
+                    btn.classList.add('hidden-5050');
+                }
+                btn.innerHTML = `<span class="text-pink-500 font-black mr-4">${String.fromCharCode(65+idx)}.</span> ${opt}`;
+                btn.onclick = () => { 
+                    playSound('pingpong');
+                    currentAns = idx;
+                    document.querySelectorAll('.btn-option').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    // Block clicks and auto verify
+                    document.querySelectorAll('.btn-option').forEach(b => b.disabled = true);
+                    setTimeout(verifyAnswer, 800);
+                };
+                cont.appendChild(btn);
+            });
+        } 
+        else if(qData.type === "tf") {
+            actionZone.classList.remove('hidden');
+            currentAns = [null, null, null, null];
+            
+            qData.opts.forEach((opt, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between bg-pink-50/30 p-3 rounded-xl border border-pink-100 mb-2';
+                
+                const textDiv = document.createElement('div');
+                textDiv.className = 'flex-1 mr-4 text-gray-700 leading-relaxed';
+                textDiv.innerHTML = `<b class="text-pink-600 mr-2">${String.fromCharCode(97+idx)})</b> ${opt.text}`;
+                
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'flex gap-2';
+                
+                const btnT = document.createElement('button');
+                btnT.className = 'btn-tf text-green-600 hover:bg-green-50';
+                btnT.innerText = 'Đúng';
+                
+                const btnF = document.createElement('button');
+                btnF.className = 'btn-tf text-red-600 hover:bg-red-50';
+                btnF.innerText = 'Sai';
+
+                btnT.onclick = () => {
+                    playSound('pingpong');
+                    currentAns[idx] = true;
+                    btnT.classList.add('selected-t'); btnF.classList.remove('selected-f');
+                    checkEnableSubmit();
+                };
+                btnF.onclick = () => {
+                    playSound('pingpong');
+                    currentAns[idx] = false;
+                    btnF.classList.add('selected-f'); btnT.classList.remove('selected-t');
+                    checkEnableSubmit();
+                };
+                btnGroup.appendChild(btnT); btnGroup.appendChild(btnF);
+                row.appendChild(textDiv); row.appendChild(btnGroup);
+                cont.appendChild(row);
+            });
+        }
+        else if(qData.type === "short") {
+            actionZone.classList.remove('hidden');
+            const input = document.createElement('input');
+            input.type = "text";
+            input.id = "saInput";
+            input.className = "short-answer-input";
+            input.placeholder = "Nhập đáp án (tối đa 4 kí tự)";
+            input.maxLength = 4;
+            input.oninput = (e) => { 
+                currentAns = e.target.value.trim();
+                checkEnableSubmit();
+            };
+            // Phím enter gửi bài
+            input.addEventListener('keypress', function(e) {
+                if(e.key === 'Enter' && currentAns && currentAns !== "") verifyAnswer();
+            });
+            cont.appendChild(input);
+            setTimeout(() => input.focus(), 100);
+        }
+        
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise().catch(function (err) {});
+        }
+
+        // Bắt đầu đếm ngược
+        clearInterval(timerInterval);
+        timeLeft = 180;
+        document.getElementById('timer').innerText = `${timeLeft}s`;
+        document.getElementById('timer').style.color = "var(--primary-pink)";
+        startTimer();
+    }
+
+    function checkEnableSubmit() {
+        const qData = sessionBank[currentIndex];
+        const btn = document.getElementById('submitAnsBtn');
+        if(qData.type === 'tf') {
+            btn.disabled = !currentAns.every(x => x !== null);
+        } else if (qData.type === 'short') {
+            btn.disabled = !currentAns || currentAns === "";
+        }
+    }
+
+    function verifyAnswer() {
+        clearInterval(timerInterval);
+        document.getElementById('submitAnsBtn').disabled = true;
+        const qData = sessionBank[currentIndex];
+        let isCorrect = false;
+        
+        let userStr = "";
+        let correctStr = "";
+
+        if(qData.type === "choice") {
+            isCorrect = (currentAns === qData.correctIdx);
+            
+            if (currentAns !== null) {
+                document.getElementById(`opt-${currentAns}`).classList.remove('selected');
+                if(isCorrect) {
+                    document.getElementById(`opt-${currentAns}`).classList.add('correct');
+                } else {
+                    document.getElementById(`opt-${currentAns}`).classList.add('wrong');
+                    document.getElementById(`opt-${qData.correctIdx}`).classList.add('correct');
+                }
+                userStr = String.fromCharCode(65+currentAns);
+            } else {
+                userStr = "Không trả lời";
+                document.getElementById(`opt-${qData.correctIdx}`).classList.add('correct');
+            }
+            
+            correctStr = String.fromCharCode(65+qData.correctIdx);
+        } 
+        else if (qData.type === "tf") {
+            if (currentAns.includes(null)) {
+                isCorrect = false;
+                userStr = "Không trả lời đủ";
+            } else {
+                isCorrect = currentAns.every((v, i) => v === qData.opts[i].ans);
+                userStr = currentAns.map(v => v ? 'Đ' : 'S').join(', ');
+            }
+            correctStr = qData.opts.map(v => v.ans ? 'Đ' : 'S').join(', ');
+            if(!isCorrect) {
+                document.querySelectorAll('.btn-tf').forEach(b => b.style.opacity = '0.5');
+            }
+        } 
+        else if (qData.type === "short") {
+            if (!currentAns || currentAns === "") {
+                isCorrect = false;
+                userStr = "Không trả lời";
+            } else {
+                isCorrect = (currentAns.toLowerCase() === qData.a.toLowerCase());
+                userStr = currentAns;
+            }
+            
+            correctStr = qData.a;
+            const inp = document.getElementById('saInput');
+            if (inp) {
+                if(isCorrect) {
+                    inp.style.borderColor = 'var(--correct-green)'; inp.style.background = '#e8f5e9';
+                } else {
+                    inp.style.borderColor = 'var(--wrong-red)'; inp.style.background = '#ffebee';
+                }
+            }
+        }
+
+        // Lưu lịch sử
+        historyLog.push({
+            num: currentIndex + 1,
+            q: qData.q,
+            u: userStr,
+            c: correctStr,
+            exp: qData.exp,
+            isRight: isCorrect
+        });
+
+        if(isCorrect) {
+            playSound('correct');
+            setTimeout(() => {
+                currentIndex++;
+                if(currentIndex === 20) handleGameOver(true, "TUYỆT VỜI! BẠN ĐÃ TRỞ THÀNH TRIỆU PHÚ!");
+                else loadQuestion();
+            }, 1500);
+        } else {
+            playSound('wrong');
+            setTimeout(() => handleGameOver(false, "TRẢ LỜI SAI!"), 2000);
+        }
+    }
+
+    function handleGameOver(isWin, reason) {
+        clearInterval(timerInterval);
+        isExamFinished = true;
+        document.getElementById('lifelines-container').style.display = 'none';
+        
+        let finalScore = 0;
+        if(isWin) finalScore = 10;
+        else {
+            if (currentIndex >= 10) finalScore = 8;
+            else if (currentIndex >= 5) finalScore = 5;
+            else finalScore = 0;
+        }
+
+        document.getElementById('endModal').style.display = 'flex';
+        document.getElementById('endTitle').innerText = isWin ? "CHÚC MỪNG CHIẾN THẮNG" : "TRÒ CHƠI KẾT THÚC";
+        document.getElementById('endReason').innerText = reason;
+        document.getElementById('finalScoreText').innerText = finalScore.toString().replace('.', ',');
+        
+        const feedbackEl = document.getElementById('feedbackText');
+        if(finalScore === 10) {
+            feedbackEl.innerText = "“Xuất sắc! Bạn đã vượt qua 20/20 câu!”";
+            playSound('win');
+            if(window.confetti) confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+        }
+        else if(finalScore >= 8) {
+            feedbackEl.innerText = "“Tuyệt vời! Đạt được mốc 10 câu là một kết quả Tốt.”";
+            playSound('win');
+            if(window.confetti) confetti({ particleCount: 80, spread: 80, origin: { y: 0.6 } });
+        }
+        else if(finalScore >= 5) {
+            feedbackEl.innerText = "“Khá lắm, bạn đã vượt qua cột mốc đầu tiên!”";
+            playSound('correct');
+        }
+        else {
+            feedbackEl.innerText = "“Rất tiếc, bạn chưa qua được cột mốc 5. Hãy thử lại nhé!”";
+        }
+        
+        initScratchCard();
+    }
+
+    function showHistory() {
+        document.getElementById('endModal').style.display = 'none';
+        const tbody = document.getElementById('historyBody');
+        tbody.innerHTML = '';
+        historyLog.forEach(h => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center font-bold text-pink-600">${h.num}</td>
+                <td>${h.q}</td>
+                <td class="font-bold ${h.isRight ? 'text-green-600' : 'text-red-600'}">${h.u}</td>
+                <td class="font-bold text-green-600">${h.c}</td>
+                <td class="text-gray-500 italic">${h.exp}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+        document.getElementById('historyModal').style.display = 'flex';
+    }
+
+    function useLifeline(type) {
+        if (!lifelines[type] || isExamFinished) return;
+        playSound('pingpong');
+        lifelines[type] = false;
+        document.getElementById(`ll-${type}`).classList.add('used');
+
+        let q = sessionBank[currentIndex];
+        let hintSource = q.exp; 
+
+        if (q.type === 'choice') {
+            if (type === '5050') {
+                let wrongs = [0,1,2,3].filter(i => i !== q.correctIdx);
+                wrongs = shuffle(wrongs);
+                q.hiddenOptions = [wrongs[0], wrongs[1]];
+                document.getElementById(`opt-${wrongs[0]}`).classList.add('hidden-5050');
+                document.getElementById(`opt-${wrongs[1]}`).classList.add('hidden-5050');
+            } else if (type === 'call') {
+                let ansChar = String.fromCharCode(65 + q.correctIdx);
+                showHintBox(`📞 <b>Người thân nói:</b> "Theo mình đáp án đúng là <b>${ansChar}</b>. ${hintSource}"`);
+            } else if (type === 'audience') {
+                let votes = [0, 0, 0, 0];
+                let correctVote = Math.floor(Math.random() * 31) + 45;
+                votes[q.correctIdx] = correctVote;
+                let remain = 100 - correctVote;
+                let wrongs = [0,1,2,3].filter(i => i !== q.correctIdx);
+                votes[wrongs[0]] = Math.floor(Math.random() * (remain * 0.6)); remain -= votes[wrongs[0]];
+                votes[wrongs[1]] = Math.floor(Math.random() * remain); remain -= votes[wrongs[1]];
+                votes[wrongs[2]] = remain;
+                showHintBox(`👥 <b>Khán giả bình chọn:</b><br> <b>A:</b> ${votes[0]}% &nbsp;|&nbsp; <b>B:</b> ${votes[1]}% &nbsp;|&nbsp; <b>C:</b> ${votes[2]}% &nbsp;|&nbsp; <b>D:</b> ${votes[3]}%`);
+            }
+        } else {
+            if (type === 'call') showHintBox(`📞 <b>Người thân gợi ý:</b> ${hintSource}`);
+            else if (type === 'audience') showHintBox(`👥 <b>Khán giả gợi ý:</b> ${hintSource}`);
+            else showHintBox(`💡 <b>Gợi ý:</b> ${hintSource}`);
+        }
+    }
+
+    function showHintBox(content) {
+        const hintBox = document.getElementById('hint-box');
+        hintBox.innerHTML = content;
+        hintBox.classList.remove('hidden');
+    }
+
+    function initScratchCard() {
+        const canvas = document.getElementById('scratchCard');
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.fillStyle = '#fce4ec';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.font = "20px Roboto";
+        ctx.fillStyle = "#e91e63";
+        ctx.textAlign = "center";
+        ctx.fillText("Cạo để xem điểm", canvas.width/2, canvas.height/2 + 5);
+
+        let isDrawing = false;
+        const scratch = (e) => {
+            if(!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+            const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI * 2); ctx.fill();
+        };
+        canvas.onmousedown = () => isDrawing = true;
+        window.onmouseup = () => isDrawing = false;
+        canvas.onmousemove = scratch;
+        canvas.ontouchstart = (e) => { isDrawing = true; scratch(e); };
+        canvas.ontouchmove = scratch;
+    }
+</script>
+</body>
+</html>
